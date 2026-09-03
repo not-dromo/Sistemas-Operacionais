@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 void function_fork(void);
@@ -24,6 +24,7 @@ void function_fork(void) {
                 n += 2;
                 printf("Processo filho pid=%d, n=%d\n", getpid(), n);
             }
+            wait(NULL);
         }
 
     } else {
@@ -32,5 +33,6 @@ void function_fork(void) {
             n++;
             printf("Processo pai pid=%d, n=%d\n", getpid(), n);
         }
+        wait(NULL);
     }
 }
