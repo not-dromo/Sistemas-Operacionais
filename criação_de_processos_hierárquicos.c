@@ -14,15 +14,15 @@ void function_fork(void) {
     int n = 1;
 
     if (fork() == 0) {
-        for (int i = 0; i < 1000; i++) {
-            n += 2;
-            printf("Processo filho pid=%d, n=%d\n", getpid(), n);
-        }
-
         if (fork() == 0) {
             for (int i = 0; i < 1000; i++) {
                 n += 3;
-                //printf("Processo neto pid=%d, n=%d\n", getpid(), n);
+                printf("Processo neto pid=%d, n=%d\n", getpid(), n);
+            }
+        } else {
+            for (int i = 0; i < 1000; i++) {
+                n += 2;
+                printf("Processo filho pid=%d, n=%d\n", getpid(), n);
             }
         }
 
