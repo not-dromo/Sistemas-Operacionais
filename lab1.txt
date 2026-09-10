@@ -1,0 +1,14 @@
+Código: criação_de_processos_hierárquicos.c
+
+Explique os resultados obtidos. 
+Os valores impressos pelos processos pai, filho e neto são iguais ou diferentes? Justifique. 
+Os valores estão consistentes com o esperado? 
+
+O pid do pai, filho e neto são diferentes, geralmente sequênciais mas não obrigatoriamente. o valor de n de cada um deles é iniciado antes de qualquer
+fork(), e após um fork() o processo recebe uma cópia do programa com o seu próprio n então pai, filho e neto possuem, respectivamente, n igual a 1001, 
+2001 e 3001 ao final do programa
+
+Não existe ordem deterministica (varia a cada execução) já que 3 processos disputam o uso da CPU, o computador decide qual 
+processo vai printar em qual ordem, por isso em algumas horas é alternado, em outras é sequencial, etc...
+
+Para comprovar o programa foi rodado mais de uma vez, e em todas as vezes a sequência de prints foi diferente

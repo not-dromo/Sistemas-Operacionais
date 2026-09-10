@@ -17,12 +17,12 @@ void function_fork(void) {
         if (fork() == 0) {
             for (int i = 0; i < 1000; i++) {
                 n += 3;
-                printf("Processo neto pid=%d, n=%d\n", getpid(), n);
+                printf("processo neto, pid=%d, n=%d\n", getpid(), n);
             }
         } else {
             for (int i = 0; i < 1000; i++) {
                 n += 2;
-                printf("Processo filho pid=%d, n=%d\n", getpid(), n);
+                printf("processo filho, pid=%d, n=%d\n", getpid(), n);
             }
             wait(NULL);
         }
@@ -31,7 +31,7 @@ void function_fork(void) {
         
         for (int i = 0; i < 1000; i++) {
             n++;
-            printf("Processo pai pid=%d, n=%d\n", getpid(), n);
+            printf("processo pai, pid=%d, n=%d\n", getpid(), n);
         }
         wait(NULL);
     }
