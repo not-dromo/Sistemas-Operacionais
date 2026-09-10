@@ -1,0 +1,28 @@
+Código: memória_compartilhada.c
+
+Explique os resultados obtidos. 
+Os valores impressos pelos processos pai, filho e neto são iguais ou diferentes? Justifique. 
+Os valores estão consistentes com o esperado? 
+
+O pid do pai, filho e neto continuam diferentes, mas agora a variável n não é mais isolada por processo. Como ela foi criada com memória compartilhada
+(shmget/shmat), pai, filho e neto acessam o mesmo endereço físico de memória, então toda alteração feita por um processo é visível pelos outros. Por isso 
+o valor final esperado de n não é mais 1001, 2001 e 3001 separados, mas sim 6001 (a soma dos 3 em uma única variável)
+
+Os valores estão consistentes com o esperado na maioria das execuções, mas diferente do lab 1, aqui existe risco real de inconsistência. A operação n += X 
+não é atômica: ela envolve ler o valor atual, somar, e escrever de volta, em três passos separados. Como os três processos rodam em paralelo e escrevem na 
+mesma memória sem nenhum mecanismo de exclusão mútua (lock/semáforo), é possível que dois processos leiam o mesmo valor de n ao mesmo tempo antes de qualquer
+um escrever de volta, perdendo um incremento. Isso é uma race condition.
+
+note que foi o caso nessa processo:
+'''
+...
+processo neto, pid=43580, n=5990
+processo neto, pid=43580, n=5993
+processo neto, pid=43580, n=5996
+lucca@laptop:~/Sistemas_Operacionais$ 
+'''
+
+A ordem de impressão continua não determinística, pelo mesmo motivo do lab 1: os três processos disputam CPU e o escalonador do sistema operacional decide
+a ordem de execução, que varia a cada execução. A diferença agora é que, além da ordem mudar, o próprio valor de n impresso por cada processo também pode 
+variar entre execuções diferentes, já que estão competindo por escrita na mesma memória, no lab 1 isso não acontecia porque cada processo tinha sua cópia 
+isolada.
