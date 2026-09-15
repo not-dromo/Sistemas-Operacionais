@@ -1,0 +1,102 @@
+Código: processos.c e threads.c
+
+1. OBJETIVO
+
+O objetivo do experimento é comparar a execução de uma mesma tarefa utilizando processos e threads, observando o comportamento do acesso 
+concorrente a um vetor compartilhado e o tempo de execução conforme aumenta o número de trabalhadores.
+
+2. IMPLEMENTAÇÃO
+
+Foi utilizado um vetor de 10.000 posições inteiras, inicialmente preenchidas com o valor 4.
+
+Cada trabalhador percorre todas as posições do vetor e executa a operação:
+
+vetor[i] = vetor[i] * 2 + 2;
+
+Foram implementadas duas versões do programa: uma utilizando processos e outra utilizando threads. Na versão com processos, foi utilizada
+memória compartilhada através de mmap(), permitindo que os processos acessem o mesmo vetor. Na versão com threads, todas as threads pertencem
+ao mesmo processo e, portanto, compartilham diretamente o vetor. Não foi utilizado mecanismo de exclusão mútua para proteger a alteração do
+vetor, pois o objetivo do experimento é observar o comportamento da execução concorrente.
+
+3. RESULTADOS COM 8 WORKERS (3 testes)
+
+Threads:
+
+output 1: [Threads] workers=8 | todas iguais? NAO | valor=1534 | tempo=0.000351 s
+output 2: [Threads] workers=8 | todas iguais? SIM | valor=1534 | tempo=0.000606 s
+output 3: [Threads] workers=8 | todas iguais? NAO | valor=1534 | tempo=0.000617 s
+
+Processos:
+
+output 1: [Processos] workers=8 | todas iguais? NAO | valor=1534 | tempo=0.000868 s
+output 2: [Processos] workers=8 | todas iguais? NAO | valor=766 | tempo=0.000954 s
+output 3: [Processos] workers=8 | todas iguais? NAO | valor=1534 | tempo=0.001148 s
+
+Os resultados variam entre execuções porque os trabalhadores acessam e modificam as mesmas posições do vetor concorrentemente.
+
+4. CONDIÇÃO DE CORRIDA
+
+O resultado esperado caso as 8 operações fossem executadas uma após a outra sobre cada posição seria:
+
+4 → 10 → 22 → 46 → 94 → 190 → 382 → 766 → 1534
+
+Porém, os trabalhadores executam a operação concorrentemente. Pode ocorrer de dois ou mais trabalhadores lerem o mesmo valor antes que outro
+trabalhador escreva seu resultado. Por exemplo, dois trabalhadores podem ler o valor 4 ao mesmo tempo, calcular 10 e ambos escreverem 10.
+Nesse caso, uma das atualizações é perdida. Esse comportamento é chamado de condição de corrida e explica por que diferentes posições podem
+terminar com valores diferentes e por que os resultados podem mudar entre execuções. A verificação automática do programa compara todas as
+posições do vetor para verificar se elas terminaram com o mesmo valor.
+
+5. COMPARAÇÃO ENTRE PROCESSOS E THREADS
+
+Com 8 workers, os tempos observados foram:
+
+Processos:
+0.000868 s
+0.000954 s
+0.001148 s
+
+Threads:
+0.000351 s
+0.000606 s
+0.000617 s
+
+Neste experimento, as threads apresentaram tempos menores que os processos. Uma possível explicação é que threads são mais leves que processos
+e compartilham diretamente o espaço de memória. Processos possuem espaços de memória separados e, neste programa, foi necessário utilizar memória
+compartilhada para permitir o acesso ao mesmo vetor.
+
+6. AUMENTO DO NÚMERO DE WORKERS
+
+Os testes devem ser realizados com 4, 8, 16 e 32 workers.
+
+=== processos ===
+workers=4   media de 100 execucoes = 0.000462 s
+workers=8   media de 100 execucoes = 0.000417 s
+workers=16  media de 100 execucoes = 0.000704 s
+workers=32  media de 100 execucoes = 0.001407 s
+
+=== threads ===
+workers=4   media de 100 execucoes = 0.000028 s
+workers=8   media de 100 execucoes = 0.000167 s
+workers=16  media de 100 execucoes = 0.000528 s
+workers=32  media de 100 execucoes = 0.000803 s
+
++-------------+---------------+-------------+
+|   workers   |   processos   |   threads   |
++-------------+---------------+-------------+
+|      4      |   0.000462s   |  0.000028s  |
++-------------+---------------+-------------+
+|      8      |   0.000417s   |  0.000167s  |
++-------------+---------------+-------------+
+|      16     |   0.000704s   |  0.000528s  |
++-------------+---------------+-------------+
+|      32     |   0.001407s   |  0.000803s  |
++-------------+---------------+-------------+
+
+Note que quanto menos workers mais rápido o processo. Além disso, conforme o número de workers aumenta a diferança de tempo entre x e 2x workers diminui
+
+7. CONCLUSÃO
+
+O experimento mostrou que processos e threads podem executar a tarefa concorrentemente, mas o acesso simultâneo ao mesmo vetor sem sincronização 
+pode gerar condições de corrida. As threads apresentaram menor tempo de execução nos testes realizados com qualquer número de workers. Os resultados 
+também mostram que a execução concorrente não garante que todas as posições do vetor terão o mesmo valor, pois as atualizações podem ocorrer em uma
+ordem diferente a cada execução.
