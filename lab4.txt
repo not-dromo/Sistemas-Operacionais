@@ -1,0 +1,81 @@
+Código: escalonador.c
+
+1. OBJETIVO
+
+Implementar um escalonador que gerencia 6 processos em regime Round-Robin,
+com quantum de 1 segundo por processo. O escalonador é responsável por
+preemptar cada processo ao fim do seu quantum e, após 5 time-slices
+executados, encerrá-lo definitivamente.
+
+2. ESTRATÉGIA DE IMPLEMENTAÇÃO
+
+Cada "processo" é um processo real do sistema operacional, criado com
+fork(). Cada filho executa um loop eterno (um contador incrementado
+indefinidamente), simulando uma carga de trabalho contínua.
+
+A preempção não é simulada de forma cooperativa (o processo não decide
+parar sozinho): ela é feita de verdade, pelo sistema operacional, através de
+sinais UNIX enviados pelo processo pai (o escalonador):
+
+- SIGSTOP - pausa o processo instantaneamente, sem que ele saiba ou precise
+cooperar. É equivalente ao que o escalonador do kernel faz ao trocar de
+contexto.
+- SIGCONT - retoma a execução do processo exatamente de onde parou.
+- SIGKILL - encerra o processo de forma definitiva, usado quando ele atinge
+o limite de 5 slices.
+
+O laço principal do escalonador segue esta lógica, para cada processo da fila
+circular:
+
+1. Envia SIGCONT ao processo da vez.
+2. Dorme (sleep(1)) - esse é o quantum de 1 segundo.
+3. Envia SIGSTOP ao processo (preempção).
+4. Incrementa o contador de slices desse processo.
+5. Se o contador chegou a 5, envia SIGKILL e remove o processo da fila.
+6. Passa para o próximo processo da fila (round-robin).
+
+O laço se repete até que os 6 processos tenham sido encerrados.
+
+3. DETALHE TÉCNICO: BUFFER STDOUT
+
+Durante os testes, um problema comum de programação com fork() apareceu:
+mensagens do escalonador ficavam duplicadas. A causa é que o printf
+mantém um buffer interno em memória; quando o fork() é chamado antes desse
+buffer ser esvaziado, o conteúdo pendente é copiado para o processo filho, que
+acaba imprimindo o mesmo texto de novo. A correção foi desativar o buffer do
+stdout com setvbuf(stdout, NULL, _IONBF, 0) logo no início do programa,
+garantindo que cada printf seja escrito imediatamente na tela.
+
+4. MENSAGENS DO ESCALONADOS
+
+O programa imprime, para cada processo, mensagens indicando:
+- Quando ele recebe a CPU (->) e em qual slice está.
+- Quando o quantum se esgota e ele é preemptado (<-).
+- Quando atinge o limite de 5 slices e é encerrado.
+
+Cada processo filho também imprime periodicamente uma linha indentada
+mostrando que está de fato avançando enquanto tem a CPU, e que para de avançar
+assim que é preemptado.
+
+5. RESULTADOS OBSERVADOS
+
+A execução confirma o comportamento esperado do Round-Robin:
+
+- Todos os 6 processos avançam de forma intercalada, um segundo por vez.
+- Cada processo só imprime seu contador enquanto está "rodando" (entre o
+SIGCONT e o SIGSTOP seguinte) - nos demais momentos ele fica
+efetivamente parado, sem consumir CPU.
+- Após 5 slices (5 segundos de CPU acumulados), cada processo é encerrado
+pelo escalonador e sai da fila.
+- O tempo total de execução do programa é de aproximadamente 30 segundos
+(6 processos × 5 slices × 1 segundo).
+
+6. CONCLUSÃO
+
+O experimento mostra na prática os conceitos centrais de escalonamento de
+processos: fatiamento de tempo (quantum), preempção via sinais do sistema
+operacional e término de processo por política do escalonador (aqui, número
+máximo de slices em vez de um exit() natural do processo). A abordagem com
+fork() + SIGSTOP/SIGCONT/SIGKILL é uma forma direta de obter
+preempção real, sem precisar simular escalonamento dentro de um único
+processo com threads.
