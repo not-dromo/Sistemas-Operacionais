@@ -1,0 +1,79 @@
+LAB 5 - Escalonamento de processos de tempo real
+ 
+Objetivo
+ 
+Implementar, em C, um escalonador que controla três processos filhos (P1, P2, P3) 
+segundo uma política de tempo real: cada processo executa periodicamente, uma vez 
+por minuto, começando em um instante fixo (I) e durando um período fixo (D).
+ 
+Escala definida:
+ 
+| Processo | Início (I) | Duração (D) |        Intervalo no minuto        |
+|----------|-----------|--------------|-----------------------------------|
+| P1       | 5s        | 20s          | 5s - 25s                          |
+| P2       | 45s       | 15s          | 45s - 60s                         |
+| P3       | -         | -            | roda no restante: 0s-5s e 25s-45s |
+ 
+Abordagem
+
+O processo pai cria os três filhos com fork(). Cada filho roda um loop infinito que
+apenas imprime seu nome e o PID a cada segundo - o "trabalho" em si não importa para
+o exercício, o que importa é quando ele consegue rodar.
+ 
+O controle de quem roda e quem não roda é feito pelo pai, mandando sinais para os filhos:
+ 
+- SIGSTOP - pausa o processo (o kernel já faz isso sozinho, não precisa de handler).
+- SIGCONT - retoma um processo pausado.
+O pai nunca dorme por muito tempo: a cada 100ms ele chama gettimeofday(), pega tv_sec % 60
+(o segundo dentro do minuto atual) e decide se cada processo deveria estar rodando ou parado 
+naquele instante. Se o estado desejado for diferente do estado atual, ele manda o sinal 
+correspondente.
+ 
+Guardar o estado atual (p1_esta_rodando, etc.) evita mandar SIGSTOP/SIGCONT repetido no mesmo
+processo a cada iteração do loop de 100ms - os sinais só são enviados quando há uma mudança
+real de estado.
+ 
+Por que usar tv_sec % 60
+ 
+gettimeofday devolve o tempo em segundos desde 1/1/1970 (época Unix). Como os relógios do
+sistema estão sincronizados com o relógio de parede, o resto da divisão por 60 (% 60) dá
+exatamente o segundo dentro do minuto corrente - é isso que permite alinhar P1 e P2 com o
+"minuto cheio", sem precisar guardar o horário de início do programa.
+ 
+Estrutura do código
+ 
+1. processo_filho(nome) - função executada só pelos filhos: loop infinito que imprime e 
+dorme 1 segundo.
+
+2. main():
+   - três fork() sucessivos criam P1, P2 e P3;
+   - o pai manda SIGSTOP inicial nos três, para começar com tudo parado;
+   - loop infinito do escalonador: lê o tempo, decide quem deveria estar rodando, ajusta
+    os sinais e dorme 100ms.
+Testes
+ 
+Para observar o comportamento, basta compilar e rodar:
+ 
+bash
+gcc -o lab5 lab5_escalonador.c
+./lab5
+
+ 
+E acompanhar a saída junto com um relógio (por exemplo date +%S em outro terminal). 
+Espera-se ver:
+ 
+- silêncio (nenhuma saída de P1/P2) do segundo 0 ao 5 - só P3 imprime;
+- P1 imprimindo do segundo 5 ao 25;
+- P3 de novo do 25 ao 45;
+- P2 do 45 ao 60;
+- e o ciclo reinicia no próximo minuto.
+Também é possível confirmar o estado dos processos com ps -o pid,stat,cmd -p <pid> em outro 
+terminal: o campo STAT mostra T quando o processo está parado (stopped) e R/S quando está rodando.
+ 
+Conclusão
+ 
+O exercício mostra como um escalonador em espaço de usuário pode implementar uma política de tempo 
+real simples usando apenas sinais POSIX (SIGSTOP/SIGCONT) e uma referência de tempo absoluta (gettimeofday). 
+Não é um escalonador real de kernel - a precisão depende do intervalo de checagem (100ms aqui) - mas 
+ilustra bem o mecanismo básico de controle de execução de processos a partir de outro processo.
+
