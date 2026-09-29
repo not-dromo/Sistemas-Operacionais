@@ -1,5 +1,4 @@
-// Compilar: gcc lab1.c -o lab1 -pthread
-// Rodar: ./lab1
+//Lab 6 - Semáforo
 
 #include <stdio.h>
 #include <pthread.h>
