@@ -89,7 +89,7 @@ void executar_rodada(int numero_tarefas, int com_semaforos) {
     } else {
         printf("Total de posicoes erradas: %d de %d\n", posicoes_erradas, TAMANHO_VETOR);
         if (posicoes_erradas > MAXIMO_POSICOES_IMPRESSAS) {
-            printf("(mostrei so as primeiras %d)\n", MAXIMO_POSICOES_IMPRESSAS);
+            printf("(mostrando apenas as %d)\n", MAXIMO_POSICOES_IMPRESSAS);
         }
     }
 

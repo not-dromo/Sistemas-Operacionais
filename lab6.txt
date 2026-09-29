@@ -1,0 +1,110 @@
+LAB 6 - SEMÁFORO
+
+1. OBJETIVO
+
+O objetivo do laboratorio e observar um problema de concorrencia (condicao de corrida) e depois corrigi-lo usando semaforos. 
+Um vetor global de 10.000 posicoes, inicializado com 10, e alterado por 100 tarefas concorrentes (threads). A tarefa de numero 
+impar subtrai o seu numero de todas as posicoes, e a tarefa de numero par soma o seu numero. Depois de todas terminarem, os 
+elementos do vetor sao comparados com o valor esperado para ver se houve erro.
+
+2. VALOR ESPERADO
+
+As tarefas formam pares: (-1 +2), (-3 +4), (-5 +6), e assim por diante. Cada par soma +1 no total. Com 100 tarefas existem 50 pares, 
+entao cada posicao deve terminar com 10 + 50 = 60.
+
+Para outros numeros de tarefas (sempre par), o valor esperado e 10 + (numero de tarefas / 2):
+
+100 tarefas   -> 60
+1000 tarefas  -> 510
+5000 tarefas  -> 2510
+20000 tarefas -> 10010
+
+Qualquer posicao com valor diferente do esperado indica que houve erro de concorrencia.
+
+3. PARTE 1 - EXECUCAO SEM PROTECAO
+
+3.1 Por que o erro pode acontecer
+
+A instrucao vetor[posicao] += valor parece uma operacao unica, mas na verdade tem tres passos: ler o valor da memoria, somar, e 
+escrever o resultado de volta. Se duas threads fazem esses passos na mesma posicao ao mesmo tempo, pode acontecer o seguinte: a
+thread A le o valor 10, o sistema operacional troca para a thread B, que le 10, soma e escreve o resultado. Depois a thread A 
+volta, soma em cima do valor antigo (10) e escreve, apagando a alteracao da thread B. Isso se chama atualizacao perdida.
+
+3.2 Resultados
+
+O programa foi executado varias vezes com 100 tarefas, sem semaforos. Em todas as execucoes houve erro de concorrencia. O numero
+de posicoes erradas variou de execucao para execucao, entre cerca de 90 e cerca de 2000 posicoes, de um total de 10.000.
+ 
+Como o erro ja apareceu com 100 tarefas, nao foi necessario aumentar o numero de tarefas.
+ 
+Exemplo de uma execucao (valor esperado 60 em todas as posicoes):
+ 
+Valor esperado em todas as posicoes: 60
+Resultado: 1896 posicoes com valor errado (houve erro de concorrencia).
+Exemplo: vetor[226] = 133
+
+3.3 Analise
+
+A maquina de teste tem 4 nucleos, entao ate 4 threads podem rodar ao mesmo tempo (paralelismo). Como as 100 tarefas mexem nas 
+mesmas 10.000 posicoes, e muito comum duas threads chegarem na mesma posicao ao mesmo tempo, e por isso o erro apareceu em 
+todas as execucoes.
+ 
+A quantidade de posicoes erradas mudou bastante de uma execucao para outra (de cerca de 90 a cerca de 2000). Isso mostra que o
+erro depende do momento exato em que cada thread executa, que muda a cada vez. Tambem mudam as posicoes onde o erro aparece, e
+nao ha uma posicao especifica com problema: qualquer uma pode ser afetada.
+ 
+Os valores errados ficaram tanto acima quanto abaixo de 60, porque a alteracao perdida pode ser uma soma ou uma subtracao.
+
+4. PARTE 2 - SOLUCAO COM SEMAFOROS
+
+4.1 Ideia da solucao
+
+Foi criado um semaforo para cada posicao do vetor (10.000 semaforos), todos com valor inicial 1 (semaforos binarios). Antes 
+de alterar uma posicao, a thread faz sem_wait (Down) no semaforo dessa posicao. Depois de alterar, faz sem_post (Up). Assim, 
+so uma thread por vez altera cada posicao, e a atualizacao perdida nao pode mais acontecer.
+
+Trecho principal do codigo:
+
+sem_wait(&semaforos[posicao]);
+vetor_global[posicao] += valor;
+sem_post(&semaforos[posicao]);
+
+Funcoes usadas: sem_init (cria o semaforo com valor inicial 1), sem_wait (Down), sem_post (Up) e sem_destroy (elimina o semaforo
+no final). Foi usado sem_init, e nao sem_open, porque sao semaforos sem nome usados apenas entre threads do mesmo processo, e 
+seria pouco pratico criar 10.000 nomes.
+
+4.2 Por que um semaforo por posicao
+
+Se fosse usado um unico semaforo para proteger o loop inteiro, o erro tambem seria evitado, mas so uma tarefa poderia rodar por vez. 
+Nesse caso as tarefas deixariam de ser concorrentes, o que vai contra o enunciado, que pede que haja concorrencia entre as tarefas.
+
+Com um semaforo por posicao, varias tarefas podem trabalhar ao mesmo tempo, cada uma em uma posicao diferente. Uma thread so espera 
+quando outra esta alterando exatamente a mesma posicao.
+
+4.3 Resultados
+
+Numero de tarefas   Posicoes erradas (de 10.000)
+100                 0
+1000                0
+5000                0
+20000               0
+
+Com semaforos, todas as posicoes terminaram com o valor esperado em todos os testes
+
+Para referencia, o tempo total de execucao das duas rodadas (sem e com semaforos) foi de cerca de 0,3 s com 1000 tarefas, 1,6 s com 
+5000 tarefas e 6,6 s com 20000 tarefas.
+
+4.4 Custo dos semaforos
+
+Usar semaforos tem um custo: cada alteracao passa a ter duas operacoes a mais (sem_wait e sem_post), e uma thread pode ter que esperar 
+outra. Mesmo assim, esse custo e o preco para garantir o resultado correto.
+
+
+5. CONCLUSAO
+
+A versao sem protecao produziu resultados errados sempre, mostrando que a operacao de alterar uma posicao do vetor nao e atomica e que ha 
+condicao de corrida. Apareceram números variados de erros, e apareceram em posicoes diferentes.
+
+A versao com semaforos, usando um semaforo por posicao, eliminou o problema em todos os testes e manteve a concorrencia entre as tarefas. 
+Isso mostra que semaforos sao uma forma eficiente de proteger a secao critica, desde que a protecao seja aplicada no menor trecho possivel 
+(aqui, uma posicao por vez) para nao perder o paralelismo.
