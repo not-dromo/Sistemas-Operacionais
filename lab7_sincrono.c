@@ -1,19 +1,3 @@
-/*
- * LAB7 - Parte 2: troca de mensagens SINCRONA entre 2 processos
- *
- * Fila do sistema (sys/msg.h) com dois tipos de mensagem:
- *   tipo 1 = DADO         (produtor -> consumidor)
- *   tipo 2 = CONFIRMACAO  (consumidor -> produtor)
- *
- * O produtor envia um dado e BLOQUEIA esperando a confirmacao. So depois
- * de receber a confirmacao ele pode enviar o proximo. Assim nunca existe
- * mais de 1 mensagem pendente: o envio so termina quando o receptor
- * recebeu e tratou o dado (estilo "request-reply sincrono").
- *
- * 32 mensagens. O consumidor demora 1 intervalo para tratar cada dado.
- *
- * Uso: ./lab7_sincrono [intervalo_em_ms]   (padrao: 1000)
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -57,7 +41,7 @@ static void produtor(int id_fila)
         if (msgsnd(id_fila, &dado, sizeof(int), 0) == -1) {
             perror("produtor: msgsnd"); exit(1);
         }
-        /* bloqueia ate chegar uma mensagem do tipo CONFIRMACAO */
+        // bloqueia ate chegar uma mensagem do tipo CONFIRMACAO
         if (msgrcv(id_fila, &confirmacao, sizeof(int), TIPO_CONFIRMACAO, 0) == -1) {
             perror("produtor: msgrcv"); exit(1);
         }
@@ -73,7 +57,6 @@ static void consumidor(int id_fila, long intervalo_ms)
     Mensagem dado, confirmacao;
 
     for (int contador = 1; contador <= TOTAL_MENSAGENS; contador++) {
-        /* so le mensagens do tipo DADO */
         if (msgrcv(id_fila, &dado, sizeof(int), TIPO_DADO, 0) == -1) {
             perror("consumidor: msgrcv"); exit(1);
         }
@@ -81,7 +64,7 @@ static void consumidor(int id_fila, long intervalo_ms)
                segundos_desde_inicio(), dado.valor);
         fflush(stdout);
 
-        usleep((useconds_t) intervalo_ms * 1000);   /* tempo de tratamento */
+        usleep((useconds_t) intervalo_ms * 1000);
 
         confirmacao.tipo  = TIPO_CONFIRMACAO;
         confirmacao.valor = dado.valor;

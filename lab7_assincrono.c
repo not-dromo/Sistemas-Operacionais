@@ -1,20 +1,3 @@
-/*
- * LAB7 - Parte 1: troca de mensagens ASSINCRONA com fila do sistema (sys/msg.h)
- *
- * 3 processos: 1 produtor e 2 consumidores.
- *  - produtor: gera 1 inteiro por segundo (256 no total)
- *  - consumidor 1: retira 1 mensagem a cada 1 segundo
- *  - consumidor 2: retira 1 mensagem a cada 2 segundos
- *  - a fila guarda no maximo 64 elementos
- *
- * Fim do programa: depois de enviar as 256 mensagens, o produtor envia
- * 2 mensagens especiais (valor = -1), uma para cada consumidor. Quem
- * recebe -1 para de consumir. Como a fila e FIFO, as mensagens especiais
- * so sao lidas depois de todos os dados.
- *
- * Uso: ./lab7_assincrono [intervalo_base_em_ms]   (padrao: 1000)
- * O argumento serve so para testar rapido (ex.: 10).
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -31,8 +14,8 @@
 #define TIPO_MENSAGEM        1
 
 typedef struct {
-    long tipo;   /* obrigatorio: precisa ser > 0 */
-    int  valor;  /* o inteiro que estamos enviando */
+    long tipo;
+    int  valor;
 } Mensagem;
 
 static struct timespec instante_inicial;
@@ -64,7 +47,6 @@ static void produtor(int id_fila, long intervalo_ms)
 
     for (int numero = 1; numero <= TOTAL_MENSAGENS; numero++) {
         mensagem.valor = numero;
-        /* sem IPC_NOWAIT: se a fila estiver cheia (64), bloqueia aqui */
         if (msgsnd(id_fila, &mensagem, sizeof(int), 0) == -1) {
             perror("produtor: msgsnd");
             exit(1);
@@ -76,7 +58,6 @@ static void produtor(int id_fila, long intervalo_ms)
         esperar_ms(intervalo_ms);
     }
 
-    /* uma mensagem de fim para cada consumidor */
     mensagem.valor = VALOR_FIM;
     for (int consumidor = 0; consumidor < 2; consumidor++) {
         if (msgsnd(id_fila, &mensagem, sizeof(int), 0) == -1) {
@@ -96,7 +77,7 @@ static void consumidor(int id_fila, int numero_consumidor, long intervalo_ms)
     int quantidade_consumida = 0;
 
     while (1) {
-        /* tipo 0 = pega a primeira mensagem da fila; bloqueia se vazia */
+        // tipo 0 = pega a primeira mensagem da fila; bloqueia se vazia
         if (msgrcv(id_fila, &mensagem, sizeof(int), 0, 0) == -1) {
             perror("consumidor: msgrcv");
             exit(1);
@@ -122,7 +103,6 @@ int main(int argc, char *argv[])
     long intervalo_base_ms = (argc > 1) ? atol(argv[1]) : 1000;
     if (intervalo_base_ms <= 0) intervalo_base_ms = 1000;
 
-    /* cria a fila (privada, so os filhos desse programa usam) */
     int id_fila = msgget(IPC_PRIVATE, IPC_CREAT | 0600);
     if (id_fila == -1) { perror("msgget"); return 1; }
 
@@ -153,7 +133,7 @@ int main(int argc, char *argv[])
 
     for (int i = 0; i < 3; i++) wait(NULL);
 
-    msgctl(id_fila, IPC_RMID, NULL);   /* apaga a fila do sistema */
+    msgctl(id_fila, IPC_RMID, NULL);
     printf("Fila removida. Fim.\n");
     return 0;
 }
