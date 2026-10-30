@@ -1,0 +1,59 @@
+Arquivos: lab7_assincrono.c, lab7_sincrono.c
+
+MECANISMO
+Os processos se comunicam por uma fila de mensagens do kernel (sys/msg.h).
+Cada mensagem tem um tipo (long > 0) e um dado (int). Funções usadas: msgget
+(cria a fila), msgctl (configura e remove), msgsnd (envia, bloqueia se a fila
+estiver cheia) e msgrcv (recebe, bloqueia se não houver mensagem). A fila é
+criada pelo processo pai antes do fork, então todos os filhos usam a mesma.
+No final, o pai espera os filhos (wait) e remove a fila (IPC_RMID).
+
+PARTE 1 - ASSÍNCRONA (3 PROCESSOS)
+- Produtor: envia os inteiros de 1 a 256, um por segundo, sem esperar o
+  recebimento.
+- Consumidor 1: retira uma mensagem a cada 1 s. Consumidor 2: a cada 2 s.
+- Limite de 64 elementos: o Linux limita a fila em bytes (msg_qbytes). Como
+  cada mensagem tem 4 bytes, usei msgctl(IPC_SET) com msg_qbytes = 64 * 4.
+  Com a fila cheia, o msgsnd do produtor bloqueia até sobrar espaço.
+- Fim: após a mensagem 256, o produtor envia duas mensagens com valor -1, uma
+  para cada consumidor. Quem recebe -1 encerra. Como a fila é FIFO, o -1 só
+  é lido depois de todos os dados. Assim, os dois consumidores juntos
+  consomem exatamente 256, sem precisar saber quantas cada um pegou.
+
+Resultado (teste com intervalos de 10 ms, 20 ms para o consumidor 2; mesma
+lógica de 1 s e 2 s): 256 mensagens enviadas, consumidor 1 consumiu 131 e
+consumidor 2 consumiu 125. Nenhuma perdida ou repetida. A fila ficou quase
+sempre com 0 ou 1 mensagem, porque os consumidores juntos retiram 1,5 por
+segundo e o produtor gera só 1 por segundo: o produtor é o gargalo e os
+consumidores ficam esperando. Por isso o limite de 64 não é atingido. Em um
+teste com o produtor sem pausa, a fila chegou a 64/64 e o produtor bloqueou,
+confirmando que o limite funciona. A divisão entre os consumidores muda a
+cada execução.
+
+PARTE 2 - SÍNCRONA (2 PROCESSOS)
+Uma fila com dois tipos de mensagem: tipo 1 (dado) e tipo 2 (confirmação).
+- Produtor: para cada número de 1 a 32, envia o dado e bloqueia no msgrcv
+  esperando a confirmação (tipo 2). Só depois envia o próximo.
+- Consumidor: lê só mensagens tipo 1, trata o dado (1 s) e envia a
+  confirmação (tipo 2).
+Os tipos evitam que cada processo leia a mensagem destinada ao outro. Nunca
+há mais de um dado pendente e o ritmo é o do processo mais lento.
+
+Resultado (execução real, saida_sincrono.txt): 32 mensagens enviadas,
+recebidas e confirmadas em ordem, em cerca de 32 s (1 s por mensagem).
+
+Trecho do log:
+  [   0.00s] PRODUTOR   envia  1 e espera confirmacao...
+  PIDs: produtor=127 consumidor=128
+  [   0.00s] CONSUMIDOR recebeu  1, tratando...
+  [   1.00s] CONSUMIDOR confirmou  1
+  [   1.00s] PRODUTOR   recebeu confirmacao do  1
+  [   1.00s] PRODUTOR   envia  2 e espera confirmacao...
+  [   1.00s] CONSUMIDOR recebeu  2, tratando...
+  [   2.00s] PRODUTOR   recebeu confirmacao do  2
+
+CONCLUSÃO
+Na troca assíncrona o produtor segue sem esperar e a fila absorve a diferença
+de velocidade (até o limite). Na síncrona o envio só termina com a
+confirmação, então os processos andam juntos. Nas duas, a fila foi removida
+no final (conferido com ipcs -q).
